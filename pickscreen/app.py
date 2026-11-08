@@ -213,6 +213,7 @@ class PickScreenApp(Adw.Application):
     def _open_editor(self, pixbuf):
         if self.cfg.get("auto_copy"):
             output.copy_pixbuf(pixbuf)
+        saved = None
         if self.cfg.get("auto_save"):
             try:
                 saved = output.save_pixbuf(pixbuf, self.cfg)
@@ -223,6 +224,7 @@ class PickScreenApp(Adw.Application):
         if self.window:
             self.window.destroy()
         self.window = EditorWindow(self, pixbuf, self.cfg)
+        self.window.saved_path = saved  # las ediciones sobrescriben este archivo
         self.window.present()
 
     # -------------------------------------------------------- OCR sin editor

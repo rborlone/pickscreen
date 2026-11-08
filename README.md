@@ -17,7 +17,8 @@ Corre como servicio de usuario con atajos globales y un ícono en la bandeja.
 - **OCR**: copia al portapapeles el texto de una zona o de toda la imagen (Tesseract, español + inglés por defecto).
 - **Grabación de pantalla** en WebM (con micrófono opcional) y exportación a **GIF**.
 - **Atajos globales** y **ícono en la bandeja** con acceso rápido (se puede ocultar).
-- **Copia y guardado automáticos** (PNG o JPG), configurables.
+- **Copia y guardado automáticos** (PNG o JPG), configurables. Copiar, Guardar y OCR cierran el editor al terminar,
+  y las ediciones sobrescriben el archivo del autoguardado en vez de crear un duplicado.
 - Interfaz en **español e inglés**: usa el idioma del sistema y puedes cambiarlo en Preferencias.
 
 ### Cómo funciona
@@ -134,7 +135,8 @@ It runs as a user service with global shortcuts and a tray icon.
 - **OCR**: copy the text of an area, or of the whole image, to the clipboard (Tesseract, Spanish + English by default).
 - **Screen recording** to WebM (optional microphone) and export to **GIF**.
 - **Global shortcuts** and a **tray icon** with quick access (it can be hidden).
-- **Automatic copy and save** (PNG or JPG), configurable.
+- **Automatic copy and save** (PNG or JPG), configurable. Copy, Save and OCR close the editor when done, and edits
+  overwrite the autosaved file instead of creating a duplicate.
 - Interface in **Spanish and English**: it follows the system language and you can change it in Preferences.
 
 ### How it works

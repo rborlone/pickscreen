@@ -62,6 +62,7 @@ class EditorWindow(Adw.ApplicationWindow):
         self.revision = 0          # sube con cada cambio
         self.copied_rev = 0        # revisión que ya está en el portapapeles
         self.saved_rev = 0         # revisión ya guardada en archivo (0 = la captura original)
+        self.saved_path = None     # archivo de esta captura (se sobrescribe, no se duplica)
 
         self.set_default_size(
             min(max(pixbuf.get_width() + 40, 720), 1400),
@@ -492,32 +493,13 @@ class EditorWindow(Adw.ApplicationWindow):
         elif not text:
             self.toast(_("No se encontró texto"))
         else:
-            output.copy_text(text, self.get_display())
-            toast = Adw.Toast(title=_("Texto copiado ({n} caracteres)").format(n=len(text)),
-                              button_label=_("Ver"), timeout=6)
-            toast.connect("button-clicked", lambda *_: self._show_text(text))
-            self.toasts.add_toast(toast)
+            self._copy_text_and_close(text)
 
-    def _show_text(self, text):
-        dialog = Adw.Dialog(title=_("Texto reconocido"), content_width=520, content_height=380)
-        view = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR, left_margin=12, right_margin=12,
-                            top_margin=10, bottom_margin=10)
-        buffer = view.get_buffer()
-        buffer.set_text(text)
-        copy_btn = Gtk.Button(label=_("Copiar texto"), css_classes=["suggested-action"],
-                              halign=Gtk.Align.CENTER, margin_top=8, margin_bottom=8)
-
-        def copy(_btn):
-            start, end = buffer.get_bounds()
-            output.copy_text(buffer.get_text(start, end, False), self.get_display())
-            copy_btn.set_label(_("¡Copiado!"))
-
-        copy_btn.connect("clicked", copy)
-        toolbar = Adw.ToolbarView(content=Gtk.ScrolledWindow(child=view, vexpand=True))
-        toolbar.add_top_bar(Adw.HeaderBar())
-        toolbar.add_bottom_bar(copy_btn)
-        dialog.set_child(toolbar)
-        dialog.present(self)
+    def _copy_text_and_close(self, text):
+        output.copy_text(text, self.get_display())
+        # Que al cerrar no se pise el texto con la imagen (auto_copy en finish)
+        self.copied_rev = self.revision
+        GLib.idle_add(self.close)
 
     # ---------------------------------------------------------------- salida
     def _flat(self):
@@ -526,16 +508,19 @@ class EditorWindow(Adw.ApplicationWindow):
     def copy(self):
         output.copy_pixbuf(self._flat(), self.get_display())
         self.copied_rev = self.revision
-        self.toast(_("Copiado al portapapeles"))
+        # Con la imagen ya en el portapapeles no hay nada más que hacer: cerrar
+        GLib.idle_add(self.close)
 
     def save(self):
         try:
-            path = output.save_pixbuf(self._flat(), self.cfg)
+            path = output.save_pixbuf(self._flat(), self.cfg, self.saved_path)
         except Exception as exc:  # noqa: BLE001 - mostrar cualquier fallo de E/S
             self.toast(_("No se pudo guardar: {error}").format(error=exc))
             return
         self.saved_rev = self.revision
-        self.toast(_("Guardado en {path}").format(path=path))
+        self.saved_path = path
+        print(f"pickscreen: guardado en {path}")
+        GLib.idle_add(self.close)
 
     def finish(self):
         """Al cerrar, la versión editada se copia y guarda según las preferencias."""
@@ -547,7 +532,7 @@ class EditorWindow(Adw.ApplicationWindow):
             self.copied_rev = self.revision
         if self.cfg.get("auto_save") and self.saved_rev != self.revision:
             try:
-                output.save_pixbuf(flat, self.cfg)
+                self.saved_path = output.save_pixbuf(flat, self.cfg, self.saved_path)
                 self.saved_rev = self.revision
             except OSError as exc:
                 print(f"pickscreen: no se pudo guardar: {exc}")

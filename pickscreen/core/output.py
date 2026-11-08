@@ -56,17 +56,24 @@ def _flatten(pixbuf):
     return flat
 
 
-def save_pixbuf(pixbuf, cfg: dict) -> Path:
-    """Guarda la imagen con nombre por fecha/hora y devuelve la ruta."""
-    folder = config.save_dir(cfg)
-    folder.mkdir(parents=True, exist_ok=True)
-    ext = "jpg" if cfg.get("format") == "jpg" else "png"
-    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    path = folder / f"pickscreen_{stamp}.{ext}"
-    n = 1
-    while path.exists():  # dos capturas en el mismo segundo
-        path = folder / f"pickscreen_{stamp}_{n}.{ext}"
-        n += 1
+def save_pixbuf(pixbuf, cfg: dict, path: Path | None = None) -> Path:
+    """Guarda la imagen y devuelve la ruta.
+
+    Sin `path`, crea un archivo nuevo con nombre por fecha/hora. Con `path`,
+    sobrescribe ese archivo (así una captura editada no se guarda dos veces).
+    """
+    if path is None:
+        folder = config.save_dir(cfg)
+        folder.mkdir(parents=True, exist_ok=True)
+        ext = "jpg" if cfg.get("format") == "jpg" else "png"
+        stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        path = folder / f"pickscreen_{stamp}.{ext}"
+        n = 1
+        while path.exists():  # dos capturas en el mismo segundo
+            path = folder / f"pickscreen_{stamp}_{n}.{ext}"
+            n += 1
+    path = Path(path)
+    ext = "jpg" if path.suffix.lower() in (".jpg", ".jpeg") else "png"
 
     if ext == "jpg":
         quality = str(cfg.get("jpg_quality", 92))
