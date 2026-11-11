@@ -34,7 +34,8 @@ class PickScreenApp(Adw.Application):
                          flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.cfg = config.load()
         self.window = None
-        self.mode = "edit"          # "edit": abre el editor · "ocr": copia el texto y listo
+        self._hidden_editor = None  # editor oculto mientras el portal toma la captura
+        self.mode = "edit"         # "edit": abre el editor · "ocr": copia el texto y listo
         self._capturing = False
         self._daemon = False
         self._shortcuts = None
@@ -171,9 +172,11 @@ class PickScreenApp(Adw.Application):
             return
         self._capturing = True
         self.mode = mode
-        if self.window:
+        self._hidden_editor = None
+        if self.window and self.window.get_visible():
             self.window.finish()      # copiar/guardar lo editado antes de seguir
             self.window.set_visible(False)
+            self._hidden_editor = self.window   # solo este se restaura si se cancela
         self.hold()                   # mantener viva la app mientras el portal responde
         capture.take_screenshot(self._on_captured)
 
@@ -182,9 +185,10 @@ class PickScreenApp(Adw.Application):
         self.release()
         if error:
             print(f"pickscreen: {error}", file=sys.stderr)
+        hidden, self._hidden_editor = self._hidden_editor, None
         if not uri:
-            if self.window:          # cancelado: volver al editor si existía
-                self.window.set_visible(True)
+            if hidden is not None and hidden is self.window:   # cancelado: volver al editor que había
+                hidden.set_visible(True)
             return
 
         pixbuf = self._load_capture(uri)
@@ -223,9 +227,19 @@ class PickScreenApp(Adw.Application):
 
         if self.window:
             self.window.destroy()
-        self.window = EditorWindow(self, pixbuf, self.cfg)
-        self.window.saved_path = saved  # las ediciones sobrescriben este archivo
-        self.window.present()
+        window = EditorWindow(self, pixbuf, self.cfg)
+        window.saved_path = saved  # las ediciones sobrescriben este archivo
+        # Al cerrarse el editor hay que olvidarlo: si no, cancelar una captura
+        # posterior lo "revive" (set_visible(True)) como una ventana muerta que no se puede cerrar.
+        # (en GTK4 la señal "destroy" no llega aquí; "close-request" sí, y no vetamos el cierre)
+        window.connect("close-request", self._on_editor_closed)
+        self.window = window
+        window.present()
+
+    def _on_editor_closed(self, window):
+        if self.window is window:
+            self.window = None
+        return False
 
     # -------------------------------------------------------- OCR sin editor
     def _ocr_capture(self, pixbuf):
